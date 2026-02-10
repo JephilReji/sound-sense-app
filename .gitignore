@@ -1,7 +1,25 @@
+# Miscellaneous
+*.log
+*.svg
+*.pyc
+.history
+.DS_Store
+
+# IntelliJ/VS Code
+.idea/
+.vscode/
+*.iml
+
+# Flutter/Dart
 /build/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
-.idea/
-.vscode/
-*.iml
+.pub-cache/
+.pub/
+
+# Android specific
+.gradle/
+local.properties
+*.keystore
+*.jks
