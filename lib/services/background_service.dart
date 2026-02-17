@@ -11,7 +11,7 @@ Future<void> initializeService() async {
     'sound_sense_channel', // id
     'SoundSense Service', // title
     description: 'This channel is used for critical alerts.',
-    importance: Importance.low, 
+    importance: Importance.low, // Low importance = No sound/vibration for the status notification
   );
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -25,23 +25,29 @@ Future<void> initializeService() async {
   // 2. Configure the Service
   await service.configure(
     androidConfiguration: AndroidConfiguration(
-      onStart: onStart, 
-      autoStart: true, 
+      // This is the function that runs in the background
+      onStart: onStart,
+
+      // CRITICAL FOR M2 TASKS:
+      autoStart: false, // Set to false so we control it with the button first
       isForegroundMode: true, 
+      
+      // FIXED: Removed 'isSticky' (It is default now)
+      
       notificationChannelId: 'sound_sense_channel',
       initialNotificationTitle: 'SoundSense Active',
       initialNotificationContent: 'Listening for danger...',
       foregroundServiceNotificationId: 888,
     ),
     iosConfiguration: IosConfiguration(
-      autoStart: true,
+      autoStart: false,
       onForeground: onStart,
     ),
   );
 }
 
 // 3. The "Undying" Function (Must be outside any class)
-@pragma('vm:entry-point') 
+@pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
 
@@ -59,25 +65,26 @@ void onStart(ServiceInstance service) async {
     service.stopSelf();
   });
 
-  // The Heartbeat: Prints to console every 5 seconds
-  Timer.periodic(const Duration(seconds: 5), (timer) async {
+  // The Heartbeat: Prints to console every 1 second
+  Timer.periodic(const Duration(seconds: 1), (timer) async {
     if (service is AndroidServiceInstance) {
       if (await service.isForegroundService()) {
         service.setForegroundNotificationInfo(
           title: "SoundSense Active",
-          content: "System Healthy. Time: ${DateTime.now().second}",
+          content: "Monitoring Environment... ${DateTime.now().second}",
         );
       }
     }
-    
-    // THIS PRINT PROVES IT WORKS IN DEBUG CONSOLE
-    print('FLUTTER BACKGROUND SERVICE: Still Alive! ${DateTime.now()}');
-    
+
+    // DEBUG LOG
+    print('FLUTTER BACKGROUND SERVICE: Heartbeat ${DateTime.now()}');
+
     // Send data to UI
     service.invoke(
       'update',
       {
         "current_date": DateTime.now().toIso8601String(),
+        "status": "Active",
       },
     );
   });

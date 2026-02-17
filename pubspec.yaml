@@ -30,13 +30,20 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_background_service: ^5.0.10
-  flutter_local_notifications: ^17.0.0
-  permission_handler: ^11.3.0
+  flutter_background_service: ^5.1.0
+  flutter_local_notifications: ^20.1.0
+  permission_handler: ^12.0.1
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+
+  tflite_flutter: ^0.10.1 
+  
+  # For the "Ears" (Supports raw stream)
+  record: ^5.1.0
+  # For File Handling
+  path_provider: ^2.1.2
 
 dev_dependencies:
   flutter_test:

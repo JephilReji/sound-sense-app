@@ -11,12 +11,14 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // CORRECTED: Kotlin DSL requires the 'is' prefix and an equals sign
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        jvmTarget = "17"
     }
 
     defaultConfig {
@@ -41,4 +43,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // CORRECTED: Kotlin DSL requires parentheses and double quotes
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
