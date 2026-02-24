@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'dart:async';
 import 'services/background_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Initialize the Background Service
   await initializeService();
   runApp(const MyApp());
 }
@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
       title: 'SoundSense',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: const Color(0xFF121212), // Dark Mode
+        scaffoldBackgroundColor: const Color.fromARGB(211, 13, 0, 54),
         useMaterial3: true,
       ),
       home: const HomeScreen(),
@@ -35,92 +35,139 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  bool isRunning = false;
+  DateTime? startTime;
+  Timer? uiTimer;
+  String runtimeText = "00:00:00";
+
   @override
   void initState() {
     super.initState();
-    _checkPermissions(); // Ask for permissions on startup
+    _checkPermissions();
+    _syncServiceState();
   }
 
-  // 2. The Permission Logic (Updated for Battery Logic)
+  @override
+  void dispose() {
+    uiTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _checkPermissions() async {
-    // Basic Permissions
     await [
       Permission.microphone,
       Permission.notification,
     ].request();
 
-    // CRITICAL: Request to ignore battery optimizations
-    // This allows the app to run when the screen is locked
     var batteryStatus = await Permission.ignoreBatteryOptimizations.status;
     if (!batteryStatus.isGranted) {
       await Permission.ignoreBatteryOptimizations.request();
     }
   }
 
+  Future<void> _syncServiceState() async {
+    final service = FlutterBackgroundService();
+    bool running = await service.isRunning();
+    setState(() {
+      isRunning = running;
+      if (isRunning) {
+        startTime = DateTime.now();
+        _startUITimer();
+      }
+    });
+  }
+
+  void _startUITimer() {
+    uiTimer?.cancel();
+    uiTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (startTime != null) {
+        final duration = DateTime.now().difference(startTime!);
+        final hours = duration.inHours.toString().padLeft(2, '0');
+        final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+        final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+        setState(() {
+          runtimeText = "$hours:$minutes:$seconds";
+        });
+      }
+    });
+  }
+
+  Future<void> _toggleService() async {
+    final service = FlutterBackgroundService();
+    bool currentlyRunning = await service.isRunning();
+
+    if (currentlyRunning) {
+      service.invoke("stopService");
+      uiTimer?.cancel();
+      setState(() {
+        isRunning = false;
+        startTime = null;
+        runtimeText = "00:00:00";
+      });
+    } else {
+      await service.startService();
+      setState(() {
+        isRunning = true;
+        startTime = DateTime.now();
+      });
+      _startUITimer();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("SoundSense Prototype")),
+      appBar: AppBar(title: const Text("SoundSense")),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.hearing, size: 80, color: Colors.yellow),
-            const SizedBox(height: 20),
-            const Text(
-              "Background Service Status:",
-              style: TextStyle(color: Colors.white, fontSize: 18),
-            ),
-            const SizedBox(height: 10),
-            
-            // 3. Listen to the Service Status
-            StreamBuilder<Map<String, dynamic>?>(
-              stream: FlutterBackgroundService().on('update'),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Text(
-                    "Service Inactive",
-                    style: TextStyle(
-                        color: Colors.red,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold),
-                  );
-                }
-                final data = snapshot.data!;
-                String time = data["current_date"]?.split("T").last.split(".").first ?? "Unknown";
-                return Text(
-                  "Active\nLast Ping: $time",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.green, fontSize: 16),
-                );
-              },
+            GestureDetector(
+              onTap: _toggleService,
+              child: Container(
+                width: 150,
+                height: 150,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isRunning ? Colors.red : Colors.green,
+                  boxShadow: [
+                    BoxShadow(
+                      color: isRunning ? Colors.red.withOpacity(0.5) : Colors.green.withOpacity(0.5),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    isRunning ? "STOP" : "START",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 40),
-            
-            // STOP BUTTON
-            ElevatedButton(
-              onPressed: () {
-                FlutterBackgroundService().invoke("stopService");
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text("STOP SERVICE (Debug)",
-                  style: TextStyle(color: Colors.white)),
+            Text(
+              isRunning ? "Service Active" : "Service Inactive",
+              style: TextStyle(
+                color: isRunning ? Colors.green : Colors.red,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            const SizedBox(height: 20),
-            
-            // START BUTTON
-            ElevatedButton(
-              onPressed: () async {
-                final service = FlutterBackgroundService();
-                var isRunning = await service.isRunning();
-                if (!isRunning) {
-                  service.startService();
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text("START SERVICE",
-                  style: TextStyle(color: Colors.white)),
-            ),
+            const SizedBox(height: 10),
+            if (isRunning)
+              Text(
+                "Runtime: $runtimeText",
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                ),
+              ),
           ],
         ),
       ),
