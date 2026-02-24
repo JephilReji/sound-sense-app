@@ -76,7 +76,6 @@ List<double> processAudioBytes(Uint8List data) {
 void onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
 
-  // --- SERVICE SETUP ---
   if (service is AndroidServiceInstance) {
     service.on('setAsForeground').listen((event) {
       service.setAsForegroundService();
@@ -84,8 +83,12 @@ void onStart(ServiceInstance service) async {
     service.on('setAsBackground').listen((event) {
       service.setAsBackgroundService();
     });
-  }
 
+    service.setForegroundNotificationInfo(
+      title: "SoundSense Active",
+      content: "Monitoring environment...",
+    );
+  }
   service.on('stopService').listen((event) {
     service.stopSelf();
   });
@@ -160,14 +163,13 @@ void onStart(ServiceInstance service) async {
   }
 
   // --- HEARTBEAT (Reduced noise) ---
-  Timer.periodic(const Duration(seconds: 1), (timer) async {
-    if (service is AndroidServiceInstance) {
-      if (await service.isForegroundService()) {
-        service.setForegroundNotificationInfo(
-          title: "SoundSense Active",
-          content: "AI Engine Running... ${DateTime.now().second}",
-        );
-      }
-    }
+ Timer.periodic(const Duration(seconds: 1), (timer) async {
+    service.invoke(
+      'update',
+      {
+        "status": "Active",
+        "current_date": DateTime.now().toIso8601String(),
+      },
+    );
   });
 }
