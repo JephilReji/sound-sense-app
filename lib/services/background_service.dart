@@ -17,8 +17,7 @@ Future<void> initializeService() async {
     importance: Importance.low,
   );
 
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
